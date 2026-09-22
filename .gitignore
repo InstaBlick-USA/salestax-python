@@ -1,0 +1,54 @@
+# -- Python bytecode / caches --
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# -- Distribution / packaging --
+build/
+dist/
+*.egg-info/
+*.egg
+MANIFEST
+
+# -- Virtual environments --
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# -- Test / coverage artifacts --
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# -- Type checker / linter caches --
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+
+# -- Build backends --
+.hatch/
+
+# -- Editors / IDEs --
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# -- OS noise --
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# -- Secrets / local config (never commit) --
+.env
+.env.*
+!.env.example
