@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 import socket
 import ssl
 import urllib.error
@@ -31,6 +32,11 @@ class UrllibTransport:
         for key, value in headers.items():
             req.add_header(key, value)
 
+        # Order matters:
+        #   HTTPError   is a subclass of URLError and OSError
+        #   URLError    is a subclass of OSError
+        #   TimeoutError/socket.timeout is a subclass of OSError
+        # Catch the most specific first.
         try:
             with urllib.request.urlopen(req, timeout=timeout_s) as resp:
                 return resp.status, dict(resp.headers.items()), resp.read()
@@ -38,12 +44,12 @@ class UrllibTransport:
             # HTTP errors still carry a response body we want to surface.
             raw = exc.read()
             return exc.code, dict(exc.headers.items()) if exc.headers else {}, raw
-        except socket.timeout as exc:
+        except urllib.error.URLError as exc:
+            reason = getattr(exc, "reason", exc)
+            if isinstance(reason, (socket.timeout, builtins.TimeoutError)):
+                raise TimeoutError(int(timeout_s * 1000)) from exc
+            raise ConnectionError(str(reason)) from exc
+        except (socket.timeout, builtins.TimeoutError) as exc:
             raise TimeoutError(int(timeout_s * 1000)) from exc
         except (ssl.SSLError, OSError) as exc:
             raise ConnectionError(str(exc)) from exc
-        except urllib.error.URLError as exc:
-            reason = getattr(exc, "reason", exc)
-            if isinstance(reason, socket.timeout):
-                raise TimeoutError(int(timeout_s * 1000)) from exc
-            raise ConnectionError(str(reason)) from exc
