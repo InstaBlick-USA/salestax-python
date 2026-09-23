@@ -1,7 +1,7 @@
 # salestax-python
 
 [![PyPI](https://img.shields.io/pypi/v/salestax-python)](https://pypi.org/project/salestax-python/)
-[![Python versions](https://img.shields.io/pypi/pyversions/salestax-python)](https://pypi.org/project/salestax-python/)
+[![Python versions](https://img.shields.io/pypi/pyversions/salestax-python.svg?maxAge=3600)](https://pypi.org/project/salestax-python/)
 [![CI](https://github.com/InstaBlick-USA/salestax-python/actions/workflows/ci.yml/badge.svg)](https://github.com/InstaBlick-USA/salestax-python/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
