@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import socket
+import builtins
 import ssl
 import urllib.error
 import urllib.request
@@ -71,7 +71,7 @@ def test_http_error_returns_status_and_body() -> None:
 
 def test_socket_timeout_maps_to_timeout_error() -> None:
     with (
-        patch("urllib.request.urlopen", side_effect=socket.timeout("timed out")),
+        patch("urllib.request.urlopen", side_effect=builtins.TimeoutError("timed out")),
         pytest.raises(TimeoutError) as exc,
     ):
         UrllibTransport().request(
@@ -113,7 +113,7 @@ def test_os_error_maps_to_connection_error() -> None:
 
 
 def test_url_error_with_timeout_reason() -> None:
-    err = urllib.error.URLError(socket.timeout("timed out"))
+    err = urllib.error.URLError(builtins.TimeoutError("timed out"))
     with (
         patch("urllib.request.urlopen", side_effect=err),
         pytest.raises(TimeoutError),

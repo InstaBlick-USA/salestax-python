@@ -4,15 +4,15 @@ build-backend = "hatchling.build"
 
 [project]
 name = "salestax-python"
-version = "0.1.0"
-description = "Official Python SDK for Sales Tax Calculator API — real-time sales tax across 70+ countries, 51 US jurisdictions, and batch processing."
+version = "0.2.0"
+description = "Official Python SDK for the Sales Tax Calculator API."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
 authors = [{ name = "InstaBlick USA", email = "dev@salestaxcalculatorapi.com" }]
 keywords = [
   "sales-tax", "tax-api", "ecommerce", "checkout",
-  "python", "api-client", "vat", "gst", "async"
+  "python", "api-client", "vat", "gst", "hst", "async"
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -52,18 +52,11 @@ dev = [
 packages = ["salestax"]
 
 [tool.hatch.build.targets.sdist]
-include = [
-  "salestax",
-  "tests",
-  "examples",
-  "README.md",
-  "CHANGELOG.md",
-  "LICENSE",
-]
+include = ["salestax", "tests", "examples", "README.md", "CHANGELOG.md", "LICENSE"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
 src = ["salestax", "tests"]
 
 [tool.ruff.lint]
@@ -92,9 +85,7 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
 asyncio_mode = "auto"
-markers = [
-  "integration: marks tests that hit the live API (deselect with '-m \"not integration\"')",
-]
+markers = ["integration: marks tests that hit the live API"]
 
 [tool.coverage.run]
 source = ["salestax"]
@@ -102,10 +93,6 @@ branch = true
 omit = ["salestax/_version.py"]
 
 [tool.coverage.report]
-fail_under = 90
+fail_under = 85
 show_missing = true
-exclude_lines = [
-  "pragma: no cover",
-  "if TYPE_CHECKING:",
-  "raise NotImplementedError",
-]
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]

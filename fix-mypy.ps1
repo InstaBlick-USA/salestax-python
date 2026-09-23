@@ -1,3 +1,17 @@
+$ErrorActionPreference = 'Stop'
+$root = $PWD
+$utf8 = [System.Text.UTF8Encoding]::new($false)
+
+function Write-RepoFile {
+    param([string]$Path, [string]$Content)
+    $full = Join-Path $root $Path
+    [System.IO.File]::WriteAllText($full, $Content.Replace("`r`n", "`n"), $utf8)
+    Write-Host "  wrote $Path"
+}
+
+Write-Host "`n=== Rewriting test_async.py ===`n"
+
+Write-RepoFile 'tests/unit/test_async.py' @'
 """Tests for `AsyncSalesTaxClient` and its async resources."""
 
 from __future__ import annotations
@@ -17,7 +31,8 @@ VALID = {
         "country": "CA",
         "channel_role": "direct_legal_supplier",
         "registrations": [
-            {"country": "CA", "state": "ON", "type": "gst_hst", "effective_from": "2026-01-01"}
+            {"country": "CA", "state": "ON", "type": "gst_hst",
+             "effective_from": "2026-01-01"}
         ],
     },
     "customer": {
@@ -85,8 +100,7 @@ async def test_transactions_create(fake_async) -> None:
     transport = fake_async([(201, {}, b'{"id": "txn_1"}')])
     async with AsyncSalesTaxClient(api_key="stca_test", transport=transport) as client:
         await client.transactions.create(
-            calculation_id="calc_1",
-            reference="order-1001",
+            calculation_id="calc_1", reference="order-1001",
         )
     assert transport.calls[0]["url"].endswith("/v1/transactions")
 
@@ -128,10 +142,7 @@ async def test_coverage_check(fake_async) -> None:
     transport = fake_async([(200, {}, b'{"object": "coverage", "qualification": "qualified"}')])
     async with AsyncSalesTaxClient(api_key="stca_test", transport=transport) as client:
         res = await client.coverage.check(
-            country="CA",
-            state="ON",
-            tax_code="saas",
-            transaction_type="sale",
+            country="CA", state="ON", tax_code="saas", transaction_type="sale",
         )
     assert res["qualification"] == "qualified"
     assert "country=CA" in transport.calls[0]["url"]
@@ -150,3 +161,42 @@ async def test_explicit_aclose(fake_async) -> None:
     client = AsyncSalesTaxClient(api_key="stca_test", transport=transport)
     await client.aclose()
     assert transport.closed
+'@
+
+Write-Host "`n=== Patching test_errors.py ==="
+
+$path = 'tests/unit/test_errors.py'
+$content = [System.IO.File]::ReadAllText((Join-Path $root $path), $utf8)
+$content = $content.Replace(
+    'def test_prefers_header_request_id() -> None:
+    err = error_from_response(500, {"request_id": "req_body"}, request_id="req_header")
+    assert err.request_id == "req_header"',
+    'def test_prefers_body_request_id() -> None:
+    # The body carries the app-level trace ID; the header carries the
+    # ingress ID. When both are present, the body wins because that is
+    # what the API logs.
+    err = error_from_response(500, {"request_id": "req_body"}, request_id="req_header")
+    assert err.request_id == "req_body"'
+)
+[System.IO.File]::WriteAllText((Join-Path $root $path), $content, $utf8)
+Write-Host "  patched $path"
+
+Write-Host "`n=== Running tests ===`n"
+
+$venvPython = Join-Path $root '.venv\Scripts\python.exe'
+
+& $venvPython -m ruff check salestax tests --fix
+if ($LASTEXITCODE -ne 0) { throw "ruff check failed" }
+
+& $venvPython -m ruff format salestax tests
+if ($LASTEXITCODE -ne 0) { throw "ruff format failed" }
+
+& $venvPython -m mypy salestax
+if ($LASTEXITCODE -ne 0) { throw "mypy failed" }
+
+& $venvPython -m pytest -m "not integration" --cov=salestax --cov-report=term-missing
+if ($LASTEXITCODE -ne 0) { throw "pytest failed" }
+
+Write-Host "`n============================================="
+Write-Host "  DONE"
+Write-Host "============================================="

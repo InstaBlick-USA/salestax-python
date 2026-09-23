@@ -9,8 +9,6 @@ from typing import Any, Protocol
 
 from ..errors import SalesTaxError
 
-# -- Request options --------------------------------------------------------
-
 
 @dataclass
 class RequestOptions:
@@ -19,18 +17,12 @@ class RequestOptions:
     idempotency_key: str | None = None
     headers: dict[str, str] | None = None
     retryable: bool = True
-
-
-# -- Hooks ------------------------------------------------------------------
+    expand: str | None = None
 
 
 @dataclass
 class Hooks:
-    """Lifecycle callbacks. All are optional and called synchronously.
-
-    Exceptions raised inside hooks are swallowed so a buggy hook cannot
-    break request flow.
-    """
+    """Lifecycle callbacks. All are optional and called synchronously."""
 
     on_request: Callable[[dict[str, Any]], None] | None = None
     on_response: Callable[[dict[str, Any]], None] | None = None
@@ -44,17 +36,7 @@ class Hooks:
             cb(dict(info))
 
 
-# -- Transport protocol -----------------------------------------------------
-
-
 class SyncTransport(Protocol):
-    """Minimal synchronous transport contract.
-
-    Implementations take a fully-prepared request and return a tuple of
-    ``(status_code, response_headers, raw_body_bytes)``. They must not
-    raise for non-2xx responses — only for genuine network failures.
-    """
-
     def request(
         self,
         method: str,
@@ -67,8 +49,6 @@ class SyncTransport(Protocol):
 
 
 class AsyncTransport(Protocol):
-    """Minimal asynchronous transport contract. Mirror of :class:`SyncTransport`."""
-
     async def request(
         self,
         method: str,

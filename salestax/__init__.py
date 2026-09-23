@@ -1,14 +1,18 @@
 """Official Python SDK for the Sales Tax Calculator API.
 
-Real-time sales tax for 70+ countries, 51 US jurisdictions, and 13 Canadian
-provinces. Batch up to 100 transactions per call.
-
 Docs: https://salestaxcalculatorapi.com/docs
 """
 
 from __future__ import annotations
 
-from ._config import ClientOptions, RetryPolicy
+from ._config import (
+    MAX_BATCH_SIZE,
+    MAX_LINES_PER_ADJUSTMENT,
+    MAX_LINES_PER_CALCULATION,
+    MAX_REGISTRATIONS,
+    ClientOptions,
+    RetryPolicy,
+)
 from ._version import __version__
 from .client import AsyncSalesTaxClient, SalesTaxClient
 from .errors import (
@@ -25,37 +29,87 @@ from .errors import (
     ValidationError,
 )
 from .models import (
-    BatchResult,
-    CalculateTaxParams,
+    Address,
+    Adjustment,
+    AdjustmentLine,
+    AdjustmentPage,
+    AuditExpansion,
+    BillingEvent,
+    Calculation,
+    CalculationBatch,
+    CalculationBatchCreate,
+    CalculationCreate,
+    CalculationLine,
+    CalculationLineCreate,
+    Coverage,
+    CoverageQuery,
+    Customer,
+    CustomerType,
+    EvidenceResult,
     Jurisdiction,
-    JurisdictionQuery,
-    TaxBreakdownEntry,
-    TaxCalculation,
-    TaxRate,
+    ListAdjustmentsParams,
+    LocationEvidence,
+    Outcome,
+    Seller,
+    SellerChannelRole,
+    SellerRegistration,
+    TaxBehavior,
+    TaxComponent,
+    TaxIdInput,
+    Transaction,
+    TransactionCreate,
+    TransactionType,
 )
 
 __all__ = [
+    "MAX_BATCH_SIZE",
+    "MAX_LINES_PER_ADJUSTMENT",
+    "MAX_LINES_PER_CALCULATION",
+    "MAX_REGISTRATIONS",
+    "Address",
+    "Adjustment",
+    "AdjustmentLine",
+    "AdjustmentPage",
     "ApiError",
     "AsyncSalesTaxClient",
+    "AuditExpansion",
     "AuthenticationError",
-    "BatchResult",
-    "CalculateTaxParams",
+    "BillingEvent",
+    "Calculation",
+    "CalculationBatch",
+    "CalculationBatchCreate",
+    "CalculationCreate",
+    "CalculationLine",
+    "CalculationLineCreate",
     "ClientOptions",
     "ConflictError",
     "ConnectionError",
+    "Coverage",
+    "CoverageQuery",
+    "Customer",
+    "CustomerType",
+    "EvidenceResult",
     "Jurisdiction",
-    "JurisdictionQuery",
+    "ListAdjustmentsParams",
+    "LocationEvidence",
     "NotFoundError",
+    "Outcome",
     "PermissionError",
     "RateLimitError",
     "RetryPolicy",
     "SalesTaxClient",
     "SalesTaxError",
+    "Seller",
+    "SellerChannelRole",
+    "SellerRegistration",
     "ServerError",
-    "TaxBreakdownEntry",
-    "TaxCalculation",
-    "TaxRate",
+    "TaxBehavior",
+    "TaxComponent",
+    "TaxIdInput",
     "TimeoutError",
+    "Transaction",
+    "TransactionCreate",
+    "TransactionType",
     "ValidationError",
     "__version__",
 ]

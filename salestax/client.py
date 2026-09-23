@@ -1,42 +1,20 @@
-"""Public client facades — sync and async."""
+"""Public client facades - sync and async."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from ._config import (
-    DEFAULT_BASE_URL,
-    DEFAULT_TIMEOUT_MS,
-    ClientOptions,
-    RetryPolicy,
-)
+from ._config import DEFAULT_BASE_URL, DEFAULT_TIMEOUT_MS, ClientOptions, RetryPolicy
 from ._transport.http_client import AsyncHttpClient, HttpClient
-from ._transport.types import AsyncTransport, Hooks, SyncTransport
-from .resources.jurisdictions import JurisdictionsResource
-from .resources.rates import RatesResource
-from .resources.tax import TaxResource
+from ._transport.types import AsyncTransport, Hooks, RequestOptions, SyncTransport
+from .resources.batches import BatchesResource
+from .resources.calculations import CalculationsResource
+from .resources.coverage import CoverageResource
+from .resources.transactions import TransactionsResource
 
 
 class SalesTaxClient:
-    """Synchronous client for the Sales Tax Calculator API.
-
-    Example:
-        >>> from salestax import SalesTaxClient
-        >>> with SalesTaxClient() as client:
-        ...     tax = client.tax.calculate(zip_code="90210", amount=100)
-        >>> tax["taxAmount"]
-        9.75
-
-    Args:
-        api_key: API key. Falls back to ``SALESTAX_API_KEY`` when omitted.
-        base_url: Override the API base URL.
-        timeout_ms: Per-request timeout in milliseconds.
-        retry: Custom retry policy. Fields not set keep defaults.
-        default_headers: Headers merged into every request.
-        transport: Custom transport implementing :class:`SyncTransport`.
-        hooks: Lifecycle callbacks (see :class:`Hooks`).
-        chunk_batch: If True, ``calculate_batch`` auto-splits inputs >100.
-    """
+    """Synchronous client for the Sales Tax Calculator API."""
 
     def __init__(
         self,
@@ -48,7 +26,6 @@ class SalesTaxClient:
         default_headers: dict[str, str] | None = None,
         transport: SyncTransport | None = None,
         hooks: Hooks | None = None,
-        chunk_batch: bool = False,
     ) -> None:
         options = ClientOptions(
             api_key=api_key,
@@ -56,21 +33,19 @@ class SalesTaxClient:
             timeout_ms=timeout_ms,
             retry=retry or RetryPolicy(),
             default_headers=dict(default_headers or {}),
-            chunk_batch=chunk_batch,
         )
         self._options = options
         self._http = HttpClient(options, transport=transport, hooks=hooks)
-        self.tax = TaxResource(self._http, chunk_batch=chunk_batch)
-        self.rates = RatesResource(self._http)
-        self.jurisdictions = JurisdictionsResource(self._http)
+        self.calculations = CalculationsResource(self._http)
+        self.transactions = TransactionsResource(self._http)
+        self.batches = BatchesResource(self._http)
+        self.coverage = CoverageResource(self._http)
 
     @classmethod
     def from_env(cls, **overrides: Any) -> SalesTaxClient:
-        """Construct using ``SALESTAX_API_KEY`` from the environment."""
         return cls(**overrides)
 
     def close(self) -> None:
-        """Release transport resources."""
         self._http.close()
 
     def __enter__(self) -> SalesTaxClient:
@@ -81,22 +56,7 @@ class SalesTaxClient:
 
 
 class AsyncSalesTaxClient:
-    """Asynchronous client. Requires the ``[async]`` extra.
-
-    Example:
-        >>> async with AsyncSalesTaxClient() as client:
-        ...     tax = await client.tax.calculate(zip_code="90210", amount=100)
-
-    Args:
-        api_key: API key. Falls back to ``SALESTAX_API_KEY`` when omitted.
-        base_url: Override the API base URL.
-        timeout_ms: Per-request timeout in milliseconds.
-        retry: Custom retry policy.
-        default_headers: Headers merged into every request.
-        transport: Custom transport implementing :class:`AsyncTransport`.
-        hooks: Lifecycle callbacks.
-        chunk_batch: If True, ``calculate_batch`` auto-splits inputs >100.
-    """
+    """Asynchronous client. Requires the ``[async]`` extra."""
 
     def __init__(
         self,
@@ -108,7 +68,6 @@ class AsyncSalesTaxClient:
         default_headers: dict[str, str] | None = None,
         transport: AsyncTransport | None = None,
         hooks: Hooks | None = None,
-        chunk_batch: bool = False,
     ) -> None:
         options = ClientOptions(
             api_key=api_key,
@@ -116,13 +75,13 @@ class AsyncSalesTaxClient:
             timeout_ms=timeout_ms,
             retry=retry or RetryPolicy(),
             default_headers=dict(default_headers or {}),
-            chunk_batch=chunk_batch,
         )
         self._options = options
         self._http = AsyncHttpClient(options, transport=transport, hooks=hooks)
-        self.tax = _AsyncTaxResource(self._http, chunk_batch=chunk_batch)
-        self.rates = _AsyncRatesResource(self._http)
-        self.jurisdictions = _AsyncJurisdictionsResource(self._http)
+        self.calculations = _AsyncCalculationsResource(self._http)
+        self.transactions = _AsyncTransactionsResource(self._http)
+        self.batches = _AsyncBatchesResource(self._http)
+        self.coverage = _AsyncCoverageResource(self._http)
 
     @classmethod
     def from_env(cls, **overrides: Any) -> AsyncSalesTaxClient:
@@ -138,78 +97,207 @@ class AsyncSalesTaxClient:
         await self.aclose()
 
 
-# -- Async resources --------------------------------------------------------
-
-
-class _AsyncTaxResource:
-    def __init__(self, http: Any, *, chunk_batch: bool = False) -> None:
+class _AsyncCalculationsResource:
+    def __init__(self, http: Any) -> None:
         self._http = http
-        self._chunk_batch = chunk_batch
 
-    async def calculate(self, **kwargs: Any) -> Any:
-        from .errors import ValidationError
+    async def create(
+        self,
+        *,
+        currency: str,
+        tax_behavior: str,
+        billing_event: str,
+        seller: dict[str, Any],
+        customer: dict[str, Any],
+        lines: list[dict[str, Any]],
+        reference: str | None = None,
+        transaction_date: str | None = None,
+        ship_from: dict[str, Any] | None = None,
+        ship_to: dict[str, Any] | None = None,
+        idempotency_key: str | None = None,
+        expand: str | None = None,
+        retryable: bool = True,
+    ) -> Any:
+        from .resources._validation import validate_calculation
 
-        if not kwargs.get("zip_code"):
-            raise ValidationError(
-                "MISSING_PARAM", "zip_code is required", status_code=400, param="zip_code"
-            )
-        payload: dict[str, Any] = {
-            "zipCode": kwargs["zip_code"],
-            "amount": kwargs["amount"],
+        params: dict[str, Any] = {
+            "currency": currency,
+            "tax_behavior": tax_behavior,
+            "billing_event": billing_event,
+            "seller": seller,
+            "customer": customer,
+            "lines": lines,
         }
-        for src, dst in (("state", "state"), ("country", "country"), ("city", "city")):
-            if kwargs.get(src) is not None:
-                payload[dst] = kwargs[src]
-        return await self._http.send("POST", "/calculate", body=payload)
-
-    async def calculate_batch(self, transactions: Any, **kwargs: Any) -> Any:
-        from ._config import MAX_BATCH_SIZE
-        from .errors import ValidationError
-
-        if not transactions:
-            raise ValidationError("EMPTY_BATCH", "Batch must not be empty", status_code=400)
-        if len(transactions) > MAX_BATCH_SIZE and not self._chunk_batch:
-            raise ValidationError(
-                "BATCH_LIMIT_EXCEEDED",
-                f"Batch is limited to {MAX_BATCH_SIZE} transactions.",
-                status_code=400,
-            )
+        for k, v in (
+            ("reference", reference),
+            ("transaction_date", transaction_date),
+            ("ship_from", ship_from),
+            ("ship_to", ship_to),
+        ):
+            if v is not None:
+                params[k] = v
+        validate_calculation(params)
         return await self._http.send(
-            "POST", "/calculate/batch", body={"transactions": list(transactions)}
+            "POST",
+            "/v1/calculations",
+            body=params,
+            options=RequestOptions(
+                idempotency_key=idempotency_key, expand=expand, retryable=retryable
+            ),
         )
 
-    async def calculate_batch_chunked(self, transactions: Any, **kwargs: Any) -> Any:
-        from ._config import MAX_BATCH_SIZE
-        from .utils import chunk
+    async def get(
+        self, calculation_id: str, *, expand: str | None = None, retryable: bool = True
+    ) -> Any:
+        return await self._http.send(
+            "GET",
+            f"/v1/calculations/{calculation_id}",
+            options=RequestOptions(expand=expand, retryable=retryable),
+        )
 
-        results = []
-        for batch in chunk(list(transactions), MAX_BATCH_SIZE):
-            res = await self.calculate_batch(batch, **kwargs)
-            results.extend(res.get("results", []))
-        return {"results": results, "count": len(results)}
+    async def create_batch(
+        self,
+        calculations: list[dict[str, Any]],
+        *,
+        reference: str | None = None,
+        idempotency_key: str | None = None,
+        retryable: bool = True,
+    ) -> Any:
+        body: dict[str, Any] = {"calculations": calculations}
+        if reference is not None:
+            body["reference"] = reference
+        return await self._http.send(
+            "POST",
+            "/v1/calculation-batches",
+            body=body,
+            options=RequestOptions(idempotency_key=idempotency_key, retryable=retryable),
+        )
+
+    async def get_batch(
+        self, batch_id: str, *, expand: str | None = None, retryable: bool = True
+    ) -> Any:
+        return await self._http.send(
+            "GET",
+            f"/v1/calculation-batches/{batch_id}",
+            options=RequestOptions(expand=expand, retryable=retryable),
+        )
 
 
-class _AsyncRatesResource:
+class _AsyncTransactionsResource:
+    def __init__(self, http: Any) -> None:
+        self._http = http
+        self.adjustments = _AsyncAdjustmentsResource(http)
+
+    async def create(
+        self,
+        *,
+        calculation_id: str,
+        reference: str,
+        occurred_at: str | None = None,
+        idempotency_key: str | None = None,
+        expand: str | None = None,
+        retryable: bool = True,
+    ) -> Any:
+        body: dict[str, Any] = {"calculation_id": calculation_id, "reference": reference}
+        if occurred_at is not None:
+            body["occurred_at"] = occurred_at
+        return await self._http.send(
+            "POST",
+            "/v1/transactions",
+            body=body,
+            options=RequestOptions(
+                idempotency_key=idempotency_key, expand=expand, retryable=retryable
+            ),
+        )
+
+    async def get(
+        self, transaction_id: str, *, expand: str | None = None, retryable: bool = True
+    ) -> Any:
+        return await self._http.send(
+            "GET",
+            f"/v1/transactions/{transaction_id}",
+            options=RequestOptions(expand=expand, retryable=retryable),
+        )
+
+
+class _AsyncAdjustmentsResource:
     def __init__(self, http: Any) -> None:
         self._http = http
 
-    async def get(self, zip_code: str, **kwargs: Any) -> Any:
-        from urllib.parse import quote
+    async def create(
+        self,
+        transaction_id: str,
+        *,
+        reference: str,
+        reason: str,
+        lines: list[dict[str, Any]],
+        idempotency_key: str | None = None,
+        expand: str | None = None,
+        retryable: bool = True,
+    ) -> Any:
+        return await self._http.send(
+            "POST",
+            f"/v1/transactions/{transaction_id}/adjustments",
+            body={"reference": reference, "reason": reason, "lines": lines},
+            options=RequestOptions(
+                idempotency_key=idempotency_key, expand=expand, retryable=retryable
+            ),
+        )
 
-        return await self._http.send("GET", f"/rates/{quote(zip_code, safe='')}")
-
-
-class _AsyncJurisdictionsResource:
-    def __init__(self, http: Any) -> None:
-        self._http = http
-
-    async def list(self, **kwargs: Any) -> Any:
-        from urllib.parse import urlencode
-
-        params = {
+    async def list(self, transaction_id: str, **kwargs: Any) -> Any:
+        qs = {
             k: v
-            for k, v in {"country": kwargs.get("country"), "state": kwargs.get("state")}.items()
-            if v is not None
+            for k, v in kwargs.items()
+            if k in ("limit", "starting_after", "expand") and v is not None
         }
-        query = f"?{urlencode(params)}" if params else ""
-        return await self._http.send("GET", f"/jurisdictions{query}")
+        query = "?" + "&".join(f"{k}={v}" for k, v in qs.items()) if qs else ""
+        return await self._http.send("GET", f"/v1/transactions/{transaction_id}/adjustments{query}")
+
+    async def get(self, transaction_id: str, adjustment_id: str, **kwargs: Any) -> Any:
+        return await self._http.send(
+            "GET",
+            f"/v1/transactions/{transaction_id}/adjustments/{adjustment_id}",
+            options=RequestOptions(
+                expand=kwargs.get("expand"), retryable=kwargs.get("retryable", True)
+            ),
+        )
+
+
+class _AsyncBatchesResource:
+    def __init__(self, http: Any) -> None:
+        self._http = http
+
+    async def get(self, batch_id: str, **kwargs: Any) -> Any:
+        return await self._http.send(
+            "GET",
+            f"/v1/calculation-batches/{batch_id}",
+            options=RequestOptions(
+                expand=kwargs.get("expand"), retryable=kwargs.get("retryable", True)
+            ),
+        )
+
+
+class _AsyncCoverageResource:
+    def __init__(self, http: Any) -> None:
+        self._http = http
+
+    async def check(
+        self,
+        *,
+        country: str,
+        tax_code: str,
+        transaction_type: str,
+        state: str | None = None,
+        customer_type: str | None = None,
+        date: str | None = None,
+        **kwargs: Any,
+    ) -> Any:
+        qs = {"country": country, "tax_code": tax_code, "transaction_type": transaction_type}
+        if state is not None:
+            qs["state"] = state
+        if customer_type is not None:
+            qs["customer_type"] = customer_type
+        if date is not None:
+            qs["date"] = date
+        query = "&".join(f"{k}={v}" for k, v in qs.items())
+        return await self._http.send("GET", f"/v1/coverage?{query}")
