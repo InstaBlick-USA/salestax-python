@@ -109,7 +109,6 @@ client = SalesTaxClient(hooks={
 ## Also Available For
 
 - [salestax-node](https://github.com/InstaBlick-USA/salestax-node) — Node.js / TypeScript
-- [salestax-ruby](https://github.com/InstaBlick-USA/salestax-ruby) — Ruby
 
 ## Documentation
 
